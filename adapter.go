@@ -406,3 +406,78 @@ func (a *adapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int,
 
 	return nil
 }
+
+// UpdatePolicies update policy rules.
+func (a *adapter) UpdatePolicies(sec string, ptype string, oldRules, newRules [][]string) error {
+	var operations []mongo.WriteModel
+
+	for i, rule := range oldRules {
+		filter := savePolicyLine(ptype, rule)
+		update := savePolicyLine(ptype, newRules[i])
+		operation := mongo.NewUpdateOneModel()
+		operation.SetFilter(bson.M{
+			"ptype": ptype,
+			"v0": filter.V0,
+			"v1": filter.V1,
+			"v2": filter.V2,
+			"v3": filter.V3,
+			"v4": filter.V4,
+			"v5": filter.V5,
+		})
+		operation.SetUpdate(bson.M{
+			"$set": bson.M{
+				"ptype": ptype,
+				"v0": update.V0,
+				"v1": update.V1,
+				"v2": update.V2,
+				"v3": update.V3,
+				"v4": update.V4,
+				"v5": update.V5,
+			},
+		})
+		operations = append(operations, operation)
+	}
+	ctx, cancel := context.WithTimeout(context.TODO(), a.timeout)
+	defer cancel()
+
+	if _, err := a.collection.BulkWrite(ctx, operations); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdatePolicy update policy rule.
+func (a *adapter) UpdatePolicy(sec string, ptype string, oldRule, newPolicy []string) error {
+	filter := savePolicyLine(ptype, oldRule)
+	update := savePolicyLine(ptype, newPolicy)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), a.timeout)
+	defer cancel()
+
+	if _, err := a.collection.UpdateOne(ctx,
+		bson.M{
+			"ptype": ptype,
+			"v0": filter.V0,
+			"v1": filter.V1,
+			"v2": filter.V2,
+			"v3": filter.V3,
+			"v4": filter.V4,
+			"v5": filter.V5,
+		},
+		bson.M{
+			"$set": bson.M{
+				"ptype": ptype,
+				"v0": update.V0,
+				"v1": update.V1,
+				"v2": update.V2,
+				"v3": update.V3,
+				"v4": update.V4,
+				"v5": update.V5,
+			},
+		}); err != nil {
+		return err
+	}
+
+	return nil
+}
